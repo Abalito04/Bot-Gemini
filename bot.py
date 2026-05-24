@@ -17,7 +17,8 @@ class TradingBot:
     def __init__(self, api_key, api_secret):
         self.api_key = api_key
         self.api_secret = api_secret
-        self.client = None # Se inicializará en start()
+        self.testnet = os.getenv('BINANCE_TESTNET', 'false').lower() == 'true'
+        self.client = None 
         self.order_manager = None
         self.strategy = Strategy()
         self.state_file = 'state.json'
@@ -25,28 +26,27 @@ class TradingBot:
         self.state = self.load_state()
 
     def initialize_client(self):
-        """Inicializa el cliente imitando la configuración del bot exitoso."""
+        """Inicializa el cliente imitando la configuración del bot exitoso del usuario."""
         if self.client is None:
             def clean(val):
-                if not val: return ""
-                return str(val).strip().replace('"', '').replace("'", "").replace('\\', '')
+                return str(val).strip().replace('"', '').replace("'", "").replace('\\', '') if val else ""
 
             k = clean(self.api_key)
             s = clean(self.api_secret)
             
-            logger.info(f"INICIANDO CONEXIÓN ROBUSTA: [{k[:4]}...{k[-4:]}]")
+            logger.info(f"MODO: {'TESTNET' if self.testnet else 'MAINNET'} | KEY: [{k[:4]}...{k[-4:]}]")
 
             try:
-                # Usamos la inicialización más limpia posible
-                # tld='com' asegura que apunte a binance.com (Mainnet)
-                self.client = Client(k, s, tld='com')
+                # Inicialización robusta con soporte para Testnet
+                self.client = Client(k, s, testnet=self.testnet)
                 
-                # Sincronización de tiempo forzada (como hace el otro bot con timestamp)
-                self.sync_time()
+                # Sincronización de tiempo necesaria en cloud
+                server_time = self.client.get_server_time()
+                self.client.timestamp_offset = server_time['serverTime'] - int(time.time() * 1000)
                 
                 self.order_manager = OrderManager(self.client)
                 
-                # Prueba de fuego: get_account es lo que usa el otro bot
+                # Obtener balance inicial usando get_account (máxima compatibilidad)
                 acc = self.client.get_account(recvWindow=10000)
                 usdt_bal = 0.0
                 for b in acc['balances']:
@@ -58,7 +58,7 @@ class TradingBot:
                 logger.info(f"✅ ¡CONECTADO CON ÉXITO! Saldo: {usdt_bal} USDT")
                 
             except Exception as e:
-                logger.error(f"❌ Error de autenticación: {e}")
+                logger.error(f"❌ FALLO DE AUTENTICACIÓN: {e}")
                 self.state['balance_usdt'] = -1.0
             
             self.save_state()
@@ -115,39 +115,34 @@ class TradingBot:
         return df
 
     def get_balance(self):
-        """Obtiene el saldo de USDT con mayor tolerancia de tiempo (recvWindow)."""
+        """Obtiene el saldo de USDT de la cuenta."""
         try:
-            asset = "USDT"
-            # Consultamos la cuenta completa con una ventana de tiempo más amplia (10 segundos)
-            account = self.client.get_account(recvWindow=10000)
-            balances = account.get('balances', [])
-            
-            for b in balances:
-                if b['asset'] == asset:
-                    free_amount = float(b['free'])
-                    logger.info(f"Balance recuperado (get_account): {free_amount} {asset}")
-                    return free_amount
-            
-            logger.warning(f"No se encontró {asset} en los balances de la cuenta.")
-            return 0.0
+            if not self.client: return 0.0
+            balance = self.client.get_asset_balance(asset='USDT')
+            return float(balance['free']) if balance else 0.0
         except Exception as e:
-            logger.error(f"Error crítico obteniendo balance de Binance: {e}")
+            logger.error(f"Error balance: {e}")
             return 0.0
 
     def run_cycle(self):
-        # Actualizar balance siempre
+        # Asegurar inicialización antes de cada ciclo si falló antes
+        if not self.client:
+            self.initialize_client()
+            if not self.client: return
+
+        # Actualizar balance siempre que estemos inicializados
         current_balance = self.get_balance()
         self.state['balance_usdt'] = current_balance
-        
-        # Obtener datos de mercado iniciales para que el dashboard no esté vacío
+
+        # Obtener datos usando la vela CERRADA (-2) para mayor estabilidad
         try:
             df = self.fetch_data()
-            self.state['last_price'] = float(df['close'].iloc[-1])
-            self.state['last_rsi'] = float(df['rsi'].iloc[-1])
-            self.state['last_ema200'] = float(df['ema200'].iloc[-1])
-            logger.info(f"Datos de mercado actualizados: {self.state['last_price']}")
+            self.state['last_price'] = float(df['close'].iloc[-2])
+            self.state['last_rsi'] = float(df['rsi'].iloc[-2])
+            self.state['last_ema200'] = float(df['ema200'].iloc[-2])
+            logger.info(f"Mercado: {self.state['last_price']} | RSI: {self.state['last_rsi']:.1f}")
         except Exception as e:
-            logger.error(f"Error cargando datos iniciales: {e}")
+            logger.error(f"Error datos mercado: {e}")
             
         self.save_state()
 
@@ -162,33 +157,23 @@ class TradingBot:
                 self.save_state()
                 return
 
-            # 2. Obtener datos y señales
-            df = self.fetch_data()
-            signal = self.strategy.check_signals(df)
-            last_price = float(df['close'].iloc[-1])
-            last_rsi = float(df['rsi'].iloc[-1])
-            last_ema = float(df['ema200'].iloc[-1])
-
-            # Actualizar estado para el Dashboard
-            self.state['last_price'] = last_price
-            self.state['last_rsi'] = last_rsi
-            self.state['last_ema200'] = last_ema
-            self.save_state()
+            # 2. Señales
+            signal = self.strategy.check_signals(df) # strategy.py debe usar iloc[-2] también
+            last_price = self.state['last_price']
+            last_rsi = self.state['last_rsi']
 
             logger.info(f"Symbol: {self.state['symbol']} | Price: {last_price} | RSI: {last_rsi:.2f} | Signal: {signal}")
 
             # 3. Lógica de Ejecución
             if signal == 'BUY' and not self.state['current_position']:
-                # Calcular Qty basado en balance (ejemplo 10 USDT fijo para scalping)
-                # En un entorno real, se calcularía dinámicamente
-                qty_to_buy = 1.0 # Ejemplo para SOL (ajustar según USDT)
+                qty_to_buy = 1.0 # AJUSTAR SEGÚN MONTO DESEADO
                 
                 order = self.order_manager.place_market_buy(self.state['symbol'], qty_to_buy)
                 if order:
                     fill_price = float(order['fills'][0]['price'])
                     qty = float(order['executedQty'])
                     
-                    # Configurar OCO: TP 1.2%, SL 0.8%
+                    # OCO: TP 1.2%, SL 0.8%
                     tp_price = fill_price * 1.012
                     sl_trigger = fill_price * 0.992
                     sl_limit = fill_price * 0.991
@@ -216,12 +201,7 @@ class TradingBot:
                         self.save_state()
 
             elif self.state['current_position']:
-                # Verificar si la OCO se ejecutó
-                # En scalping de alta frecuencia, se suele monitorear el balance o eventos de websocket
-                # Aquí simplificamos consultando la orden OCO
-                oco_status = self.client.get_order_list(orderListId=self.state['current_position']['oco_id'])
-                # Lógica para detectar si se cerró...
-                # (Para MVP, si no hay posición en balance o la orden no está activa)
+                # Monitoreo de posición abierta
                 pass
 
         except Exception as e:
@@ -229,18 +209,14 @@ class TradingBot:
 
     def start(self):
         logger.info("Iniciando loop del bot...")
-        self.initialize_client() # Inicializar cliente antes del primer ciclo
+        self.initialize_client()
         while True:
             self.run_cycle()
-            time.sleep(60) # Esperar 1 minuto para el siguiente ciclo
+            time.sleep(60)
 
 if __name__ == "__main__":
-    # Railway inyecta estas variables automáticamente
     API_KEY = os.getenv('BINANCE_API_KEY')
-    API_SECRET = os.getenv('BINANCE_API_SECRET')
-    
-    if not API_KEY or not API_SECRET:
-        logger.error("ERROR: No se encontraron las API Keys en las variables de entorno.")
+    API_SECRET = os.getenv('BINANCE_API_SECRET') or os.getenv('BINANCE_SECRET')
     
     bot = TradingBot(API_KEY, API_SECRET)
     bot.start()

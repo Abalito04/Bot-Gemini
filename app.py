@@ -9,10 +9,12 @@ app = Flask(__name__)
 
 # 2. Cargar configuración desde entorno (Railway las inyecta directamente)
 API_KEY = os.getenv('BINANCE_API_KEY')
-API_SECRET = os.getenv('BINANCE_API_SECRET')
+# Soportamos ambos nombres para evitar errores de configuración
+API_SECRET = os.getenv('BINANCE_API_SECRET') or os.getenv('BINANCE_SECRET')
+TESTNET = os.getenv('BINANCE_TESTNET', 'false').lower() == 'true'
 
 if not API_KEY or not API_SECRET:
-    print("ERROR: API Keys no encontradas en el sistema.")
+    print("ERROR: API Keys no encontradas. Revisa BINANCE_API_KEY y BINANCE_SECRET en Railway.")
 
 # 3. Instanciar el bot (sin llamadas de red en el constructor)
 bot = TradingBot(API_KEY, API_SECRET)
