@@ -25,31 +25,26 @@ class TradingBot:
         self.state = self.load_state()
 
     def initialize_client(self):
-        """Inicializa el cliente de Binance usando el endpoint api3 (más robusto para cloud)."""
+        """Inicializa el cliente con diagnóstico de llaves."""
         if self.client is None:
-            logger.info("Inicializando cliente de Binance en api3...")
+            # Diagnóstico de seguridad (Muestra inicio y fin de las llaves en logs)
+            k = str(self.api_key).strip().replace('"', '').replace("'", "")
+            s = str(self.api_secret).strip().replace('"', '').replace("'", "")
             
-            # Limpieza profunda de llaves
-            if not self.api_key or not self.api_secret:
-                logger.error("API Keys vacías. Revisa Railway -> Variables.")
-                return
+            logger.info(f"DIAGNÓSTICO API KEY: [{k[:4]}...{k[-4:]}] (Longitud: {len(k)})")
+            logger.info(f"DIAGNÓSTICO SECRET: [{s[:4]}...{s[-4:]}] (Longitud: {len(s)})")
 
-            clean_key = str(self.api_key).strip().replace('"', '').replace("'", "")
-            clean_secret = str(self.api_secret).strip().replace('"', '').replace("'", "")
-            
-            # Inicializar cliente con el endpoint api3
-            self.client = Client(clean_key, clean_secret)
-            self.client.API_URL = 'https://api3.binance.com/api'
-            
-            self.sync_time()
-            self.order_manager = OrderManager(self.client)
-            
-            # Forzar carga de balance inicial
             try:
-                self.state['balance_usdt'] = self.get_balance()
-                logger.info(f"Balance inicial cargado con éxito.")
+                self.client = Client(k, s)
+                self.sync_time()
+                self.order_manager = OrderManager(self.client)
+                
+                # Prueba de fuego: ¿Podemos ver el balance?
+                bal = self.get_balance()
+                self.state['balance_usdt'] = bal
+                logger.info(f"✅ Conexión privada EXITOSA. Saldo: {bal}")
             except Exception as e:
-                logger.error(f"Fallo el balance inicial: {e}")
+                logger.error(f"❌ Error de conexión privada: {e}")
             
             self.save_state()
 
