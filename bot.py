@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 class TradingBot:
     def __init__(self, api_key, api_secret):
+        # Log para verificar que las llaves existen (sin mostrarlas completas)
+        if api_key and api_secret:
+            logger.info(f"API Keys detectadas. Key empieza por: {api_key[:5]}...")
+        else:
+            logger.error("API Keys NO detectadas. Verifica las variables de entorno.")
+
         # Usamos el cliente con una configuración de región más flexible
         self.client = Client(api_key, api_secret)
         # Forzamos el endpoint global de Binance
@@ -27,7 +33,11 @@ class TradingBot:
         self.state_file = 'state.json'
         self.log_csv = 'trades.csv'
         self.state = self.load_state()
-        self.save_state() # Crear el archivo si no existe inmediatamente
+        
+        # Intentar obtener balance inicial inmediatamente
+        initial_balance = self.get_balance()
+        self.state['balance_usdt'] = initial_balance
+        self.save_state()
 
     def sync_time(self):
         """Sincroniza el tiempo local con el servidor de Binance."""
@@ -97,9 +107,20 @@ class TradingBot:
             return 0.0
 
     def run_cycle(self):
-        # Actualizar balance incluso si el bot está detenido para visualización
+        # Actualizar balance siempre
         current_balance = self.get_balance()
         self.state['balance_usdt'] = current_balance
+        
+        # Obtener datos de mercado iniciales para que el dashboard no esté vacío
+        try:
+            df = self.fetch_data()
+            self.state['last_price'] = float(df['close'].iloc[-1])
+            self.state['last_rsi'] = float(df['rsi'].iloc[-1])
+            self.state['last_ema200'] = float(df['ema200'].iloc[-1])
+            logger.info(f"Datos de mercado actualizados: {self.state['last_price']}")
+        except Exception as e:
+            logger.error(f"Error cargando datos iniciales: {e}")
+            
         self.save_state()
 
         if not self.state.get('is_running', False):

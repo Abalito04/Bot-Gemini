@@ -27,7 +27,9 @@ def index():
 
 @app.route('/api/state', methods=['GET'])
 def get_state():
-    """Retorna el estado actual del bot desde la memoria."""
+    """Retorna el estado actual del bot desde la memoria con logging."""
+    # Log para ver qué tiene el bot en memoria
+    # logger.info(f"Enviando estado: Balance={bot.state.get('balance_usdt')}, Precio={bot.state.get('last_price')}")
     return jsonify(bot.state)
 
 @app.route('/api/start', methods=['POST'])
