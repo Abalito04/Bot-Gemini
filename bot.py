@@ -105,17 +105,21 @@ class TradingBot:
         return df
 
     def get_balance(self):
-        """Obtiene el saldo de USDT de la cuenta con logging detallado."""
+        """Obtiene el saldo de USDT con mayor tolerancia de tiempo (recvWindow)."""
         try:
             asset = "USDT"
-            balance = self.client.get_asset_balance(asset=asset)
-            if balance:
-                free_amount = float(balance['free'])
-                logger.info(f"Balance recuperado: {free_amount} {asset}")
-                return free_amount
-            else:
-                logger.warning(f"No se encontró el asset {asset} en la cuenta Spot.")
-                return 0.0
+            # Consultamos la cuenta completa con una ventana de tiempo más amplia (10 segundos)
+            account = self.client.get_account(recvWindow=10000)
+            balances = account.get('balances', [])
+            
+            for b in balances:
+                if b['asset'] == asset:
+                    free_amount = float(b['free'])
+                    logger.info(f"Balance recuperado (get_account): {free_amount} {asset}")
+                    return free_amount
+            
+            logger.warning(f"No se encontró {asset} en los balances de la cuenta.")
+            return 0.0
         except Exception as e:
             logger.error(f"Error crítico obteniendo balance de Binance: {e}")
             return 0.0
