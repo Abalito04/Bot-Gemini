@@ -52,15 +52,21 @@ class TradingBot:
                 
                 self.order_manager = OrderManager(self.client)
                 
+                # Obtener todos los balances de una vez
                 acc = self.client.get_account(recvWindow=10000)
                 usdt_bal = 0.0
+                asset_bal = 0.0
+                asset_name = self.state['symbol'].replace('USDT', '')
+                
                 for b in acc['balances']:
                     if b['asset'] == 'USDT':
                         usdt_bal = float(b['free'])
-                        break
+                    if b['asset'] == asset_name:
+                        asset_bal = float(b['free'])
                 
                 self.state['balance_usdt'] = usdt_bal
-                logger.info(f"✅ ¡CONECTADO! Saldo inicial: {usdt_bal} USDT")
+                self.state['balance_asset'] = asset_bal
+                logger.info(f"✅ ¡CONECTADO! USDT: {usdt_bal} | {asset_name}: {asset_bal}")
                 
             except Exception as e:
                 logger.error(f"❌ FALLO DE AUTENTICACIÓN: {e}")
@@ -68,76 +74,32 @@ class TradingBot:
             
             self.save_state()
 
-    def sync_time(self):
-        """Sincroniza el tiempo local con el servidor de Binance."""
+    def get_balances(self):
+        """Obtiene balances actualizados de USDT y el Activo."""
         try:
-            server_time = self.client.get_server_time()
-            self.client.timestamp_offset = server_time['serverTime'] - int(time.time() * 1000)
-            logger.info(f"Tiempo sincronizado con Binance. Offset: {self.client.timestamp_offset}ms")
+            if not self.client: return 0.0, 0.0
+            acc = self.client.get_account(recvWindow=10000)
+            usdt = 0.0
+            asset = 0.0
+            asset_name = self.state['symbol'].replace('USDT', '')
+            for b in acc['balances']:
+                if b['asset'] == 'USDT': usdt = float(b['free'])
+                if b['asset'] == asset_name: asset = float(b['free'])
+            return usdt, asset
         except Exception as e:
-            logger.error(f"Error sincronizando tiempo: {e}")
-        
-    def load_state(self):
-        if os.path.exists(self.state_file):
-            with open(self.state_file, 'r') as f:
-                return json.load(f)
-        return {
-            "is_running": False,
-            "symbol": "SOLUSDT",
-            "timeframe": "1m",
-            "current_position": None,
-            "daily_pnl": 0.0,
-            "max_daily_loss": -10.0,
-            "operaciones": []
-        }
-
-    def save_state(self):
-        self.state['last_update'] = datetime.now().isoformat()
-        with open(self.state_file, 'w') as f:
-            json.dump(self.state, f, indent=4)
-
-    def log_trade_csv(self, trade_data):
-        file_exists = os.path.isfile(self.log_csv)
-        with open(self.log_csv, 'a', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=['timestamp', 'symbol', 'side', 'price', 'rsi', 'qty', 'pnl', 'reason'])
-            if not file_exists:
-                writer.writeheader()
-            writer.writerow(trade_data)
-
-    def fetch_data(self):
-        candles = self.client.get_klines(
-            symbol=self.state['symbol'],
-            interval=self.state['timeframe'],
-            limit=250 # Aumentado para EMA 200
-        )
-        df = pd.DataFrame(candles, columns=[
-            'timestamp', 'open', 'high', 'low', 'close', 'volume',
-            'close_time', 'qav', 'num_trades', 'taker_base_vol', 'taker_quote_vol', 'ignore'
-        ])
-        df['close'] = df['close'].astype(float)
-        df['rsi'] = self.strategy.calculate_rsi(df)
-        df['ema200'] = self.strategy.calculate_ema(df, 200)
-        return df
-
-    def get_balance(self):
-        """Obtiene el saldo de USDT de la cuenta."""
-        try:
-            if not self.client: return 0.0
-            balance = self.client.get_asset_balance(asset='USDT')
-            return float(balance['free']) if balance else 0.0
-        except Exception as e:
-            logger.error(f"Error balance: {e}")
-            return 0.0
+            logger.error(f"Error actualizando balances: {e}")
+            return self.state.get('balance_usdt', 0.0), self.state.get('balance_asset', 0.0)
 
     def run_cycle(self):
-        # Asegurar inicialización antes de cada ciclo si falló antes
+        # Asegurar inicialización
         if not self.client:
             self.initialize_client()
             if not self.client: return
 
-        # Actualizar balance siempre que estemos inicializados
-        current_balance = self.get_balance()
-        self.state['balance_usdt'] = current_balance
+        # Actualizar balances
+        u, a = self.get_balances()
+        self.state['balance_usdt'] = u
+        self.state['balance_asset'] = a
 
         # Obtener datos usando la vela CERRADA (-2) para mayor estabilidad
         try:

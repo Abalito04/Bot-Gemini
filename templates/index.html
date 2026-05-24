@@ -150,16 +150,16 @@
                 <p id="balance-usdt" class="accent">0.00</p>
             </div>
             <div class="card">
+                <h3>Saldo <span id="asset-name">---</span></h3>
+                <p id="balance-asset" class="accent">0.0000</p>
+            </div>
+            <div class="card">
                 <h3>Precio</h3>
                 <p id="current-price">--.--</p>
             </div>
             <div class="card">
                 <h3>RSI (14m)</h3>
                 <p id="current-rsi">--.--</p>
-            </div>
-            <div class="card">
-                <h3>EMA 200</h3>
-                <p id="current-ema" style="font-size: 1.1em; margin-top: 12px;">--.--</p>
             </div>
             <div class="card">
                 <h3>PnL Diario</h3>
@@ -248,6 +248,12 @@
                 
                 if (state.balance_usdt !== undefined) {
                     document.getElementById('balance-usdt').innerText = state.balance_usdt.toFixed(2);
+                }
+                
+                if (state.balance_asset !== undefined) {
+                    const assetName = state.symbol ? state.symbol.replace('USDT', '') : '---';
+                    document.getElementById('asset-name').innerText = assetName;
+                    document.getElementById('balance-asset').innerText = state.balance_asset.toFixed(4);
                 }
 
                 if (state.last_update) {
