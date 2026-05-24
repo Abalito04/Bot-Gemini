@@ -5,14 +5,12 @@ import json
 from bot import TradingBot
 from dotenv import load_dotenv
 
-# Cargar variables desde .env
-load_dotenv()
-
-app = Flask(__name__)
-
-# Cargar configuración desde entorno
+# Cargar configuración desde entorno (Railway las inyecta directamente)
 API_KEY = os.getenv('BINANCE_API_KEY')
 API_SECRET = os.getenv('BINANCE_API_SECRET')
+
+if not API_KEY or not API_SECRET:
+    print("ERROR: API Keys no encontradas en el sistema.")
 
 # Instanciar el bot
 bot = TradingBot(API_KEY, API_SECRET)

@@ -206,11 +206,12 @@ class TradingBot:
             time.sleep(60) # Esperar 1 minuto para el siguiente ciclo
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv()
-    # Estos valores deberían venir de variables de entorno en Railway
+    # Railway inyecta estas variables automáticamente
     API_KEY = os.getenv('BINANCE_API_KEY')
     API_SECRET = os.getenv('BINANCE_API_SECRET')
+    
+    if not API_KEY or not API_SECRET:
+        logger.error("ERROR: No se encontraron las API Keys en las variables de entorno.")
     
     bot = TradingBot(API_KEY, API_SECRET)
     bot.start()
