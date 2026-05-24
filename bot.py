@@ -25,28 +25,41 @@ class TradingBot:
         self.state = self.load_state()
 
     def initialize_client(self):
-        """Inicializa el cliente con diagnóstico de llaves."""
+        """Inicializa el cliente con limpieza ultra-agresiva de llaves."""
         if self.client is None:
-            # Diagnóstico de seguridad (Muestra inicio y fin de las llaves en logs)
-            k = str(self.api_key).strip().replace('"', '').replace("'", "")
-            s = str(self.api_secret).strip().replace('"', '').replace("'", "")
+            # Limpieza ultra-agresiva de llaves
+            def clean(val):
+                if not val: return ""
+                # Quitamos comillas, barras invertidas, espacios y saltos de línea
+                return str(val).strip().replace('"', '').replace("'", "").replace('\\', '').replace('\n', '').replace('\r', '')
+
+            k = clean(self.api_key)
+            s = clean(self.api_secret)
             
             logger.info(f"DIAGNÓSTICO API KEY: [{k[:4]}...{k[-4:]}] (Longitud: {len(k)})")
             logger.info(f"DIAGNÓSTICO SECRET: [{s[:4]}...{s[-4:]}] (Longitud: {len(s)})")
 
             try:
                 self.client = Client(k, s)
+                self.client.API_URL = 'https://api.binance.com/api'
                 self.sync_time()
                 self.order_manager = OrderManager(self.client)
                 
-                # Prueba de fuego: ¿Podemos ver el balance?
-                bal = self.get_balance()
-                if bal > 0 or self.state.get('balance_usdt', 0) == 0: 
-                    # Si bal es 0 pero no hubo error, también es éxito
-                    self.state['balance_usdt'] = bal
-                    logger.info(f"✅ Conexión privada EXITOSA. Saldo: {bal}")
+                # Prueba de balance real (sin catch interno para ver el error aquí)
+                account = self.client.get_account(recvWindow=10000)
+                balances = account.get('balances', [])
+                usdt_bal = 0.0
+                for b in balances:
+                    if b['asset'] == "USDT":
+                        usdt_bal = float(b['free'])
+                        break
+                
+                self.state['balance_usdt'] = usdt_bal
+                logger.info(f"✅ CONEXIÓN EXITOSA. Saldo recuperado: {usdt_bal} USDT")
             except Exception as e:
-                logger.error(f"❌ Error de conexión privada: {e}")
+                logger.error(f"❌ FALLO CRÍTICO EN CONEXIÓN PRIVADA: {e}")
+                # Si falla aquí, el balance en el estado se queda en 0 para que la web lo vea
+                self.state['balance_usdt'] = -1.0 # Usamos -1 para indicar error de autenticación en la web
             
             self.save_state()
 
