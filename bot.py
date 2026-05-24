@@ -25,9 +25,8 @@ class TradingBot:
         self.state = self.load_state()
 
     def initialize_client(self):
-        """Inicializa el cliente de la forma más estándar posible."""
+        """Inicializa el cliente imitando la configuración del bot exitoso."""
         if self.client is None:
-            # Limpieza profunda de llaves
             def clean(val):
                 if not val: return ""
                 return str(val).strip().replace('"', '').replace("'", "").replace('\\', '')
@@ -35,25 +34,31 @@ class TradingBot:
             k = clean(self.api_key)
             s = clean(self.api_secret)
             
-            logger.info(f"INICIANDO CLIENTE ESTÁNDAR: [{k[:4]}...{k[-4:]}]")
+            logger.info(f"INICIANDO CONEXIÓN ROBUSTA: [{k[:4]}...{k[-4:]}]")
 
             try:
-                # Usamos la inicialización básica de la librería
-                self.client = Client(k, s)
+                # Usamos la inicialización más limpia posible
+                # tld='com' asegura que apunte a binance.com (Mainnet)
+                self.client = Client(k, s, tld='com')
                 
-                # Sincronización mínima necesaria
-                server_time = self.client.get_server_time()
-                self.client.timestamp_offset = server_time['serverTime'] - int(time.time() * 1000)
+                # Sincronización de tiempo forzada (como hace el otro bot con timestamp)
+                self.sync_time()
                 
                 self.order_manager = OrderManager(self.client)
                 
-                # Intento de balance usando el método más directo
-                balance = self.client.get_asset_balance(asset='USDT')
-                self.state['balance_usdt'] = float(balance['free']) if balance else 0.0
-                logger.info(f"✅ ÉXITO TOTAL. Saldo: {self.state['balance_usdt']} USDT")
+                # Prueba de fuego: get_account es lo que usa el otro bot
+                acc = self.client.get_account(recvWindow=10000)
+                usdt_bal = 0.0
+                for b in acc['balances']:
+                    if b['asset'] == 'USDT':
+                        usdt_bal = float(b['free'])
+                        break
+                
+                self.state['balance_usdt'] = usdt_bal
+                logger.info(f"✅ ¡CONECTADO CON ÉXITO! Saldo: {usdt_bal} USDT")
                 
             except Exception as e:
-                logger.error(f"❌ ERROR EN CONEXIÓN: {e}")
+                logger.error(f"❌ Error de autenticación: {e}")
                 self.state['balance_usdt'] = -1.0
             
             self.save_state()
