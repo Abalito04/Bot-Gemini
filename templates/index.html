@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance Scalper Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0b0e11;
+            --card-bg: #1e2329;
+            --text-main: #eaecef;
+            --text-muted: #848e9c;
+            --accent: #f3ba2f;
+            --success: #0ecb81;
+            --danger: #f6465d;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .status-on { background-color: var(--success); color: white; }
+        .status-off { background-color: var(--danger); color: white; }
+        
+        .timer-container {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+            color: var(--text-muted);
+        }
+        #next-update-timer { color: var(--accent); font-weight: bold; }
+
+        .chart-container {
+            background-color: var(--card-bg);
+            padding: 10px;
+            border-radius: 10px;
+            height: 450px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .card h3 {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 0.75em;
+            text-transform: uppercase;
+        }
+        .card p {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 8px 0 0 0;
+        }
+        .accent { color: var(--accent); }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-start { background-color: var(--success); color: white; }
+        .btn-stop { background-color: var(--danger); color: white; }
+        button:hover { opacity: 0.8; }
+
+        .history-container {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th {
+            text-align: left;
+            color: var(--text-muted);
+            font-size: 0.8em;
+            padding: 10px;
+            border-bottom: 1px solid #2b3139;
+        }
+        td {
+            padding: 12px 10px;
+            font-size: 0.9em;
+            border-bottom: 1px solid #2b3139;
+        }
+        .side-buy { color: var(--success); font-weight: bold; }
+        .side-sell { color: var(--danger); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Binance Scalper <span id="symbol-header" class="accent">---</span></h1>
+            <div id="bot-status" class="status-badge status-off">OFFLINE</div>
+        </div>
+
+        <div class="timer-container">
+            Siguiente análisis en: <span id="next-update-timer">--s</span> | 
+            Frecuencia: 60s
+        </div>
+
+        <div class="chart-container">
+            <div id="tradingview_widget" style="height: 100%; width: 100%;"></div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Saldo USDT</h3>
+                <p id="balance-usdt" class="accent">0.00</p>
+            </div>
+            <div class="card">
+                <h3>Precio</h3>
+                <p id="current-price">--.--</p>
+            </div>
+            <div class="card">
+                <h3>RSI (14m)</h3>
+                <p id="current-rsi">--.--</p>
+            </div>
+            <div class="card">
+                <h3>EMA 200</h3>
+                <p id="current-ema" style="font-size: 1.1em; margin-top: 12px;">--.--</p>
+            </div>
+            <div class="card">
+                <h3>PnL Diario</h3>
+                <p id="daily-pnl">$0.00</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-start" onclick="controlBot('start')">INICIAR BOT</button>
+            <button class="btn-stop" onclick="controlBot('stop')">DETENER BOT</button>
+        </div>
+
+        <div class="history-container">
+            <h3 style="margin: 0;">Historial de Operaciones</h3>
+            <table id="trades-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Lado</th>
+                        <th>Precio</th>
+                        <th>RSI</th>
+                        <th>Cantidad</th>
+                        <th>Razón</th>
+                    </tr>
+                </thead>
+                <tbody id="trades-body">
+                    <!-- Filas dinámicas -->
+                </tbody>
+            </table>
+        </div>
+
+        <div style="text-align: center; color: var(--text-muted); font-size: 0.8em; margin-top: 20px;">
+            Última Sincronización: <span id="last-update">---</span>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        let tvWidget = null;
+        let countdown = 60;
+
+        function updateTimer() {
+            if (document.getElementById('bot-status').innerText === 'EJECUTANDO') {
+                countdown--;
+                if (countdown < 0) countdown = 60;
+                document.getElementById('next-update-timer').innerText = countdown + 's';
+            } else {
+                document.getElementById('next-update-timer').innerText = '--s';
+            }
+        }
+        setInterval(updateTimer, 1000);
+
+        function loadTradingView(symbol) {
+            tvWidget = new TradingView.widget({
+                "autosize": true,
+                "symbol": "BINANCE:" + symbol,
+                "interval": "1",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "es",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": true,
+                "container_id": "tradingview_widget"
+            });
+        }
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/state');
+                const state = await response.json();
+                
+                if (state.symbol && (!tvWidget || tvWidget.options.symbol !== "BINANCE:" + state.symbol)) {
+                    loadTradingView(state.symbol);
+                }
+
+                const isRunning = state.is_running;
+                document.getElementById('bot-status').innerText = isRunning ? 'EJECUTANDO' : 'DETENIDO';
+                document.getElementById('bot-status').className = 'status-badge ' + (isRunning ? 'status-on' : 'status-off');
+                
+                document.getElementById('symbol-header').innerText = state.symbol;
+                document.getElementById('daily-pnl').innerText = `$${state.daily_pnl.toFixed(2)}`;
+                document.getElementById('daily-pnl').style.color = state.daily_pnl >= 0 ? '#0ecb81' : '#f6465d';
+                
+                if (state.balance_usdt !== undefined) {
+                    document.getElementById('balance-usdt').innerText = state.balance_usdt.toFixed(2);
+                }
+
+                if (state.last_update) {
+                    const date = new Date(state.last_update);
+                    document.getElementById('last-update').innerText = date.toLocaleTimeString();
+                }
+                
+                if (state.last_price) {
+                    document.getElementById('current-price').innerText = state.last_price.toLocaleString();
+                }
+                if (state.last_rsi) {
+                    document.getElementById('current-rsi').innerText = state.last_rsi.toFixed(2);
+                    document.getElementById('current-rsi').style.color = state.last_rsi <= 42 ? '#0ecb81' : (state.last_rsi >= 62 ? '#f6465d' : '#f3ba2f');
+                }
+                if (state.last_ema200) {
+                    document.getElementById('current-ema').innerText = state.last_ema200.toLocaleString();
+                    document.getElementById('current-ema').style.color = state.last_price > state.last_ema200 ? '#0ecb81' : '#f6465d';
+                }
+
+                // Actualizar historial
+                const tbody = document.getElementById('trades-body');
+                tbody.innerHTML = '';
+                const trades = state.operaciones || [];
+                [...trades].reverse().slice(0, 10).forEach(trade => {
+                    const row = `<tr>
+                        <td>${new Date(trade.timestamp).toLocaleTimeString()}</td>
+                        <td class="${trade.side === 'BUY' ? 'side-buy' : 'side-sell'}">${trade.side}</td>
+                        <td>${trade.price}</td>
+                        <td>${trade.rsi ? trade.rsi.toFixed(2) : '--'}</td>
+                        <td>${trade.qty}</td>
+                        <td style="color: var(--text-muted)">${trade.reason}</td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+
+            } catch (error) {
+                console.error('Error actualizando dashboard:', error);
+            }
+        }
+
+        async function controlBot(action) {
+            await fetch(`/api/${action}`, { method: 'POST' });
+            if (action === 'start') countdown = 60;
+            updateDashboard();
+        }
+
+        setInterval(updateDashboard, 2000);
+        updateDashboard();
+    </script>
+</body>
+</html>

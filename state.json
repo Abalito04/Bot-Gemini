@@ -1,0 +1,14 @@
+{
+    "is_running": true,
+    "symbol": "SOLUSDT",
+    "timeframe": "1m",
+    "current_position": null,
+    "daily_pnl": 0.0,
+    "max_daily_loss": -50.0,
+    "last_update": "2026-05-24T17:16:25.663191",
+    "operaciones": [],
+    "last_price": 85.06,
+    "last_rsi": 34.00000000000034,
+    "last_ema200": 85.3882642616851,
+    "balance_usdt": 0.0
+}
