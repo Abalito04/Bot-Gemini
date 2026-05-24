@@ -55,10 +55,26 @@ def stop_bot():
     bot.save_state()
     return jsonify({"status": "stopped"})
 
-@app.route('/api/operaciones', methods=['GET'])
-def get_operaciones():
-    """Retorna el historial de operaciones desde la memoria."""
-    return jsonify(bot.state.get('operaciones', []))
+@app.route('/api/config', methods=['GET', 'POST'])
+def handle_config():
+    """Obtiene o actualiza la configuración de trading."""
+    if request.method == 'POST':
+        data = request.json
+        # Actualizamos solo los campos permitidos
+        if 'monto_operacion' in data: bot.state['monto_operacion'] = float(data['monto_operacion'])
+        if 'tp_pct' in data: bot.state['tp_pct'] = float(data['tp_pct'])
+        if 'sl_pct' in data: bot.state['sl_pct'] = float(data['sl_pct'])
+        bot.save_state()
+        return jsonify({"status": "updated", "config": {
+            "monto": bot.state.get('monto_operacion'),
+            "tp": bot.state.get('tp_pct'),
+            "sl": bot.state.get('sl_pct')
+        }})
+    return jsonify({
+        "monto": bot.state.get('monto_operacion', 100.0),
+        "tp": bot.state.get('tp_pct', 1.2),
+        "sl": bot.state.get('sl_pct', 0.8)
+    })
 
 # 4. Iniciar el hilo del bot de forma global para que corra bajo Gunicorn
 bot_thread = threading.Thread(target=run_bot_background, daemon=True)

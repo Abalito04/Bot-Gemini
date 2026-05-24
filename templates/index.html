@@ -173,6 +173,25 @@
         </div>
 
         <div class="history-container">
+            <h3>Configuración de Estrategia</h3>
+            <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div>
+                    <label>Monto (USDT)</label>
+                    <input type="number" id="monto" value="100" style="width: 100%; padding: 8px; border-radius: 5px; border: none;">
+                </div>
+                <div>
+                    <label>Take Profit (%)</label>
+                    <input type="number" id="tp" value="1.2" step="0.1" style="width: 100%; padding: 8px; border-radius: 5px; border: none;">
+                </div>
+                <div>
+                    <label>Stop Loss (%)</label>
+                    <input type="number" id="sl" value="0.8" step="0.1" style="width: 100%; padding: 8px; border-radius: 5px; border: none;">
+                </div>
+            </div>
+            <button onclick="saveConfig()" style="margin-top: 15px; background-color: var(--accent); color: var(--bg-color);">GUARDAR CONFIGURACIÓN</button>
+        </div>
+
+        <div class="history-container" style="margin-top: 20px;">
             <h3 style="margin: 0;">Historial de Operaciones</h3>
             <table id="trades-table">
                 <thead>
@@ -292,6 +311,20 @@
             } catch (error) {
                 console.error('Error actualizando dashboard:', error);
             }
+        }
+
+        async function saveConfig() {
+            const config = {
+                monto_operacion: document.getElementById('monto').value,
+                tp_pct: document.getElementById('tp').value,
+                sl_pct: document.getElementById('sl').value
+            };
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            alert('Configuración guardada');
         }
 
         async function controlBot(action) {
