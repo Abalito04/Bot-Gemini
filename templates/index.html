@@ -362,10 +362,16 @@
         }
 
         async function controlBot(action) {
-            const url = action === 'start' ? '/api/bot/start' : '/api/bot/stop';
-            await fetch(url, { method: 'POST' });
-            if (action === 'start') countdown = 60;
-            updateDashboard();
+            console.log("Acción botón:", action);
+            const url = action === 'start' ? '/api/start' : '/api/stop';
+            try {
+                const response = await fetch(url, { method: 'POST' });
+                console.log("Respuesta:", await response.json());
+                if (action === 'start') countdown = 60;
+                updateDashboard();
+            } catch(e) {
+                console.error("Error al controlar bot:", e);
+            }
         }
 
         setInterval(updateDashboard, 2000);
