@@ -26,18 +26,24 @@ class TradingBot:
         self.state = self.load_state()
 
     def initialize_client(self):
-        """Inicializa el cliente con limpieza por Regex (fulmina comillas y espacios)."""
+        """Inicializa el cliente con diagnóstico profundo."""
         if self.client is None:
             import re
+            
+            # Ver valor original (anonimizado)
+            raw_k = str(self.api_key) if self.api_key else "VACÍO"
+            raw_s = str(self.api_secret) if self.api_secret else "VACÍO"
+            logger.info(f"ORIGINAL -> Key: {raw_k[:4]}..., Secret: {raw_s[:4]}...")
+
             def clean(val):
-                if not val: return ""
-                # Solo permite caracteres alfanuméricos (A-Z, 0-9)
+                if not val or val == "VACÍO": return ""
+                # Fulminamos todo lo que no sea alfanumérico
                 return re.sub(r'[^a-zA-Z0-9]', '', str(val))
 
             k = clean(self.api_key)
             s = clean(self.api_secret)
             
-            logger.info(f"MODO: {'TESTNET' if self.testnet else 'MAINNET'} | KEY LIMPIA: [{k[:4]}...{k[-4:]}] (Len: {len(k)})")
+            logger.info(f"LIMPIA -> Key Len: {len(k)}, Secret Len: {len(s)}")
 
             try:
                 self.client = Client(k, s, testnet=self.testnet)

@@ -7,14 +7,23 @@ from bot import TradingBot
 # 1. Instanciar Flask antes que cualquier otra cosa
 app = Flask(__name__)
 
-# 2. Cargar configuración desde entorno (Railway las inyecta directamente)
-API_KEY = os.getenv('BINANCE_API_KEY')
-# Soportamos ambos nombres para evitar errores de configuración
-API_SECRET = os.getenv('BINANCE_API_SECRET') or os.getenv('BINANCE_SECRET')
+# 2. Buscador exhaustivo de llaves (Cazador de variables)
+def find_env_var(names):
+    for name in names:
+        val = os.getenv(name)
+        if val: return val
+    # Si no lo encuentra, busca cualquier variable que contenga la palabra clave
+    for k, v in os.environ.items():
+        for name in names:
+            if name in k.upper(): return v
+    return None
+
+API_KEY = find_env_var(['BINANCE_API_KEY', 'BINANCE_KEY', 'API_KEY'])
+API_SECRET = find_env_var(['BINANCE_API_SECRET', 'BINANCE_SECRET', 'SECRET_KEY', 'API_SECRET'])
 TESTNET = os.getenv('BINANCE_TESTNET', 'false').lower() == 'true'
 
 if not API_KEY or not API_SECRET:
-    print("ERROR: API Keys no encontradas. Revisa BINANCE_API_KEY y BINANCE_SECRET en Railway.")
+    print(f"CRÍTICO: No se encontraron llaves. Variables disponibles: {list(os.environ.keys())}")
 
 # 3. Instanciar el bot (sin llamadas de red en el constructor)
 bot = TradingBot(API_KEY, API_SECRET)
