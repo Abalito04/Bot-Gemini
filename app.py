@@ -3,16 +3,18 @@ import threading
 import os
 import json
 from bot import TradingBot
-from dotenv import load_dotenv
 
-# Cargar configuración desde entorno (Railway las inyecta directamente)
+# 1. Instanciar Flask antes que cualquier otra cosa
+app = Flask(__name__)
+
+# 2. Cargar configuración desde entorno (Railway las inyecta directamente)
 API_KEY = os.getenv('BINANCE_API_KEY')
 API_SECRET = os.getenv('BINANCE_API_SECRET')
 
 if not API_KEY or not API_SECRET:
     print("ERROR: API Keys no encontradas en el sistema.")
 
-# Instanciar el bot
+# 3. Instanciar el bot (sin llamadas de red en el constructor)
 bot = TradingBot(API_KEY, API_SECRET)
 
 def run_bot_background():
@@ -25,9 +27,7 @@ def index():
 
 @app.route('/api/state', methods=['GET'])
 def get_state():
-    """Retorna el estado actual del bot desde la memoria con logging."""
-    # Log para ver qué tiene el bot en memoria
-    # logger.info(f"Enviando estado: Balance={bot.state.get('balance_usdt')}, Precio={bot.state.get('last_price')}")
+    """Retorna el estado actual del bot desde la memoria."""
     return jsonify(bot.state)
 
 @app.route('/api/start', methods=['POST'])
@@ -49,11 +49,11 @@ def get_operaciones():
     """Retorna el historial de operaciones desde la memoria."""
     return jsonify(bot.state.get('operaciones', []))
 
+# 4. Iniciar el hilo del bot de forma global para que corra bajo Gunicorn
+bot_thread = threading.Thread(target=run_bot_background, daemon=True)
+bot_thread.start()
+
 if __name__ == '__main__':
-    # Iniciar el bot en un hilo separado para no bloquear Flask
-    bot_thread = threading.Thread(target=run_bot_background, daemon=True)
-    bot_thread.start()
-    
-    # Railway usa el puerto de la variable de entorno PORT
+    # Este bloque solo se ejecuta localmente (python app.py)
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
