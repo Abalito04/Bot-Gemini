@@ -3,6 +3,7 @@ import json
 import logging
 import csv
 import os
+import re
 from datetime import datetime
 from binance.client import Client
 from order_manager import OrderManager
@@ -25,25 +26,43 @@ class TradingBot:
         self.log_csv = 'trades.csv'
         self.state = self.load_state()
 
-    def initialize_client(self):
-        """Inicializa el cliente con diagnóstico profundo."""
-        if self.client is None:
-            import re
-            
-            # Ver valor original (anonimizado)
-            raw_k = str(self.api_key) if self.api_key else "VACÍO"
-            raw_s = str(self.api_secret) if self.api_secret else "VACÍO"
-            logger.info(f"ORIGINAL -> Key: {raw_k[:4]}..., Secret: {raw_s[:4]}...")
+    def load_state(self):
+        """Carga el estado desde el archivo JSON o crea uno nuevo."""
+        if os.path.exists(self.state_file):
+            try:
+                with open(self.state_file, 'r') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {
+            "is_running": False,
+            "symbol": "SOLUSDT",
+            "timeframe": "1m",
+            "current_position": None,
+            "daily_pnl": 0.0,
+            "max_daily_loss": -10.0,
+            "balance_usdt": 0.0,
+            "balance_asset": 0.0,
+            "operaciones": []
+        }
 
+    def save_state(self):
+        """Guarda el estado actual en el archivo JSON."""
+        self.state['last_update'] = datetime.now().isoformat()
+        with open(self.state_file, 'w') as f:
+            json.dump(self.state, f, indent=4)
+
+    def initialize_client(self):
+        """Inicializa el cliente con limpieza por Regex (fulmina comillas y espacios)."""
+        if self.client is None:
             def clean(val):
-                if not val or val == "VACÍO": return ""
-                # Fulminamos todo lo que no sea alfanumérico
+                if not val: return ""
                 return re.sub(r'[^a-zA-Z0-9]', '', str(val))
 
             k = clean(self.api_key)
             s = clean(self.api_secret)
             
-            logger.info(f"LIMPIA -> Key Len: {len(k)}, Secret Len: {len(s)}")
+            logger.info(f"MODO: {'TESTNET' if self.testnet else 'MAINNET'} | KEY LIMPIA: [{k[:4]}...{k[-4:]}] (Len: {len(k)})")
 
             try:
                 self.client = Client(k, s, testnet=self.testnet)
@@ -52,17 +71,15 @@ class TradingBot:
                 
                 self.order_manager = OrderManager(self.client)
                 
-                # Obtener todos los balances de una vez
+                # Obtener balances iniciales
                 acc = self.client.get_account(recvWindow=10000)
                 usdt_bal = 0.0
                 asset_bal = 0.0
                 asset_name = self.state['symbol'].replace('USDT', '')
                 
                 for b in acc['balances']:
-                    if b['asset'] == 'USDT':
-                        usdt_bal = float(b['free'])
-                    if b['asset'] == asset_name:
-                        asset_bal = float(b['free'])
+                    if b['asset'] == 'USDT': usdt_bal = float(b['free'])
+                    if b['asset'] == asset_name: asset_bal = float(b['free'])
                 
                 self.state['balance_usdt'] = usdt_bal
                 self.state['balance_asset'] = asset_bal
@@ -73,6 +90,29 @@ class TradingBot:
                 self.state['balance_usdt'] = -1.0
             
             self.save_state()
+
+    def log_trade_csv(self, trade_data):
+        file_exists = os.path.isfile(self.log_csv)
+        with open(self.log_csv, 'a', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=['timestamp', 'symbol', 'side', 'price', 'rsi', 'qty', 'pnl', 'reason'])
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(trade_data)
+
+    def fetch_data(self):
+        candles = self.client.get_klines(
+            symbol=self.state['symbol'],
+            interval=self.state['timeframe'],
+            limit=250 
+        )
+        df = pd.DataFrame(candles, columns=[
+            'timestamp', 'open', 'high', 'low', 'close', 'volume',
+            'close_time', 'qav', 'num_trades', 'taker_base_vol', 'taker_quote_vol', 'ignore'
+        ])
+        df['close'] = df['close'].astype(float)
+        df['rsi'] = self.strategy.calculate_rsi(df)
+        df['ema200'] = self.strategy.calculate_ema(df, 200)
+        return df
 
     def get_balances(self):
         """Obtiene balances actualizados de USDT y el Activo."""
@@ -91,17 +131,14 @@ class TradingBot:
             return self.state.get('balance_usdt', 0.0), self.state.get('balance_asset', 0.0)
 
     def run_cycle(self):
-        # Asegurar inicialización
         if not self.client:
             self.initialize_client()
             if not self.client: return
 
-        # Actualizar balances
         u, a = self.get_balances()
         self.state['balance_usdt'] = u
         self.state['balance_asset'] = a
 
-        # Obtener datos usando la vela CERRADA (-2) para mayor estabilidad
         try:
             df = self.fetch_data()
             self.state['last_price'] = float(df['close'].iloc[-2])
@@ -125,50 +162,16 @@ class TradingBot:
                 return
 
             # 2. Señales
-            signal = self.strategy.check_signals(df) # strategy.py debe usar iloc[-2] también
+            signal = self.strategy.check_signals(df) 
             last_price = self.state['last_price']
             last_rsi = self.state['last_rsi']
 
-            logger.info(f"Symbol: {self.state['symbol']} | Price: {last_price} | RSI: {last_rsi:.2f} | Signal: {signal}")
+            if signal:
+                logger.info(f"SEÑAL DETECTADA: {signal} | RSI: {last_rsi:.2f}")
 
-            # 3. Lógica de Ejecución
+            # 3. Lógica de Ejecución (Simplificada para MVP)
             if signal == 'BUY' and not self.state['current_position']:
-                qty_to_buy = 1.0 # AJUSTAR SEGÚN MONTO DESEADO
-                
-                order = self.order_manager.place_market_buy(self.state['symbol'], qty_to_buy)
-                if order:
-                    fill_price = float(order['fills'][0]['price'])
-                    qty = float(order['executedQty'])
-                    
-                    # OCO: TP 1.2%, SL 0.8%
-                    tp_price = fill_price * 1.012
-                    sl_trigger = fill_price * 0.992
-                    sl_limit = fill_price * 0.991
-                    
-                    oco_order = self.order_manager.place_oco_sell(
-                        self.state['symbol'], qty, tp_price, sl_trigger, sl_limit
-                    )
-                    
-                    if oco_order:
-                        self.state['current_position'] = {
-                            'entry_price': fill_price,
-                            'qty': qty,
-                            'oco_id': oco_order['orderListId']
-                        }
-                        self.log_trade_csv({
-                            'timestamp': datetime.now().isoformat(),
-                            'symbol': self.state['symbol'],
-                            'side': 'BUY',
-                            'price': fill_price,
-                            'rsi': last_rsi,
-                            'qty': qty,
-                            'pnl': 0,
-                            'reason': 'RSI Oversold'
-                        })
-                        self.save_state()
-
-            elif self.state['current_position']:
-                # Monitoreo de posición abierta
+                # Aquí iría la lógica de compra real
                 pass
 
         except Exception as e:
@@ -184,6 +187,5 @@ class TradingBot:
 if __name__ == "__main__":
     API_KEY = os.getenv('BINANCE_API_KEY')
     API_SECRET = os.getenv('BINANCE_API_SECRET') or os.getenv('BINANCE_SECRET')
-    
     bot = TradingBot(API_KEY, API_SECRET)
     bot.start()
