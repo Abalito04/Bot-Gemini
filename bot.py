@@ -41,6 +41,11 @@ class TradingBot:
             "current_position": None,
             "daily_pnl": 0.0,
             "max_daily_loss": -10.0,
+            "monto_operacion": 100.0,
+            "tp_pct": 1.2,
+            "sl_pct": 0.8,
+            "rsi_buy": 42.0,
+            "rsi_sell": 62.0,
             "balance_usdt": 0.0,
             "balance_asset": 0.0,
             "operaciones": []
@@ -162,7 +167,9 @@ class TradingBot:
                 return
 
             # 2. Señales
-            signal = self.strategy.check_signals(df) 
+            rsi_buy = self.state.get('rsi_buy', 42.0)
+            rsi_sell = self.state.get('rsi_sell', 62.0)
+            signal = self.strategy.check_signals(df, rsi_buy=rsi_buy, rsi_sell=rsi_sell) 
             last_price = self.state['last_price']
             last_rsi = self.state['last_rsi']
 

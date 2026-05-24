@@ -174,7 +174,7 @@
 
         <div class="history-container">
             <h3>Configuración de Estrategia</h3>
-            <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            <div class="grid" style="grid-template-columns: repeat(5, 1fr); gap: 10px;">
                 <div>
                     <label>Monto (USDT)</label>
                     <input type="number" id="monto" value="100" style="width: 100%; padding: 8px; border-radius: 5px; border: none;">
@@ -187,6 +187,23 @@
                     <label>Stop Loss (%)</label>
                     <input type="number" id="sl" value="0.8" step="0.1" style="width: 100%; padding: 8px; border-radius: 5px; border: none;">
                 </div>
+                <div>
+                    <label>RSI Buy</label>
+                    <input type="number" id="rsi_buy" value="42" style="width: 100%; padding: 8px; border-radius: 5px; border: none;">
+                </div>
+                <div>
+                    <label>RSI Sell</label>
+                    <input type="number" id="rsi_sell" value="62" style="width: 100%; padding: 8px; border-radius: 5px; border: none;">
+                </div>
+            </div>
+            <div style="margin-top: 10px;">
+                <label>Temporalidad</label>
+                <select id="timeframe" style="width: 100%; padding: 8px; border-radius: 5px; border: none;">
+                    <option value="1m">1 Minuto</option>
+                    <option value="5m">5 Minutos</option>
+                    <option value="15m">15 Minutos</option>
+                    <option value="1h">1 Hora</option>
+                </select>
             </div>
             <button onclick="saveConfig()" style="margin-top: 15px; background-color: var(--accent); color: var(--bg-color);">GUARDAR CONFIGURACIÓN</button>
         </div>
@@ -313,11 +330,26 @@
             }
         }
 
+        async function loadConfig() {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+            document.getElementById('monto').value = config.monto;
+            document.getElementById('tp').value = config.tp;
+            document.getElementById('sl').value = config.sl;
+            document.getElementById('timeframe').value = config.timeframe;
+            document.getElementById('rsi_buy').value = config.rsi_buy;
+            document.getElementById('rsi_sell').value = config.rsi_sell;
+        }
+
         async function saveConfig() {
+            // ... (keep saveConfig as is) ...
             const config = {
                 monto_operacion: document.getElementById('monto').value,
                 tp_pct: document.getElementById('tp').value,
-                sl_pct: document.getElementById('sl').value
+                sl_pct: document.getElementById('sl').value,
+                timeframe: document.getElementById('timeframe').value,
+                rsi_buy: document.getElementById('rsi_buy').value,
+                rsi_sell: document.getElementById('rsi_sell').value
             };
             await fetch('/api/config', {
                 method: 'POST',
@@ -327,14 +359,9 @@
             alert('Configuración guardada');
         }
 
-        async function controlBot(action) {
-            await fetch(`/api/${action}`, { method: 'POST' });
-            if (action === 'start') countdown = 60;
-            updateDashboard();
-        }
-
         setInterval(updateDashboard, 2000);
         updateDashboard();
+        loadConfig(); // Cargar config al iniciar
     </script>
 </body>
 </html>

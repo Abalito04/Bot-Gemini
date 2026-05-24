@@ -64,16 +64,25 @@ def handle_config():
         if 'monto_operacion' in data: bot.state['monto_operacion'] = float(data['monto_operacion'])
         if 'tp_pct' in data: bot.state['tp_pct'] = float(data['tp_pct'])
         if 'sl_pct' in data: bot.state['sl_pct'] = float(data['sl_pct'])
+        if 'timeframe' in data: bot.state['timeframe'] = data['timeframe']
+        if 'rsi_buy' in data: bot.state['rsi_buy'] = float(data['rsi_buy'])
+        if 'rsi_sell' in data: bot.state['rsi_sell'] = float(data['rsi_sell'])
         bot.save_state()
         return jsonify({"status": "updated", "config": {
             "monto": bot.state.get('monto_operacion'),
             "tp": bot.state.get('tp_pct'),
-            "sl": bot.state.get('sl_pct')
+            "sl": bot.state.get('sl_pct'),
+            "timeframe": bot.state.get('timeframe'),
+            "rsi_buy": bot.state.get('rsi_buy'),
+            "rsi_sell": bot.state.get('rsi_sell')
         }})
     return jsonify({
         "monto": bot.state.get('monto_operacion', 100.0),
         "tp": bot.state.get('tp_pct', 1.2),
-        "sl": bot.state.get('sl_pct', 0.8)
+        "sl": bot.state.get('sl_pct', 0.8),
+        "timeframe": bot.state.get('timeframe', '1m'),
+        "rsi_buy": bot.state.get('rsi_buy', 42.0),
+        "rsi_sell": bot.state.get('rsi_sell', 62.0)
     })
 
 # 4. Iniciar el hilo del bot de forma global para que corra bajo Gunicorn

@@ -18,13 +18,11 @@ class Strategy:
         """Calcula la Media Móvil Exponencial (EMA)."""
         return data['close'].ewm(span=period, adjust=False).mean()
 
-    def check_signals(self, df):
+    def check_signals(self, df, rsi_buy=42, rsi_sell=62):
         """
-        Evalúa señales LONG/SHORT basadas en RSI y Filtro de EMA 200.
-        LONG: RSI <= 42 Y Precio > EMA 200 (Tendencia alcista)
-        SHORT (Exit): RSI >= 62
+        Evalúa señales LONG/SHORT basadas en RSI dinámico y Filtro de EMA 200.
         """
-        if df.empty or len(df) < 201: # Necesitamos al menos 200 velas para la EMA
+        if df.empty or len(df) < 201:
             return None
         
         last_rsi = df['rsi'].iloc[-1]
@@ -32,9 +30,9 @@ class Strategy:
         last_ema = df['ema200'].iloc[-1]
         
         # Filtro de Tendencia: Solo compramos si el precio está por encima de la EMA 200
-        if last_rsi <= 42 and last_price > last_ema:
+        if last_rsi <= rsi_buy and last_price > last_ema:
             return 'BUY'
-        elif last_rsi >= 62:
+        elif last_rsi >= rsi_sell:
             return 'SELL'
         
         return None
