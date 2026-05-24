@@ -26,27 +26,26 @@ class TradingBot:
         self.state = self.load_state()
 
     def initialize_client(self):
-        """Inicializa el cliente imitando la configuración del bot exitoso del usuario."""
+        """Inicializa el cliente con limpieza por Regex (fulmina comillas y espacios)."""
         if self.client is None:
+            import re
             def clean(val):
-                return str(val).strip().replace('"', '').replace("'", "").replace('\\', '') if val else ""
+                if not val: return ""
+                # Solo permite caracteres alfanuméricos (A-Z, 0-9)
+                return re.sub(r'[^a-zA-Z0-9]', '', str(val))
 
             k = clean(self.api_key)
             s = clean(self.api_secret)
             
-            logger.info(f"MODO: {'TESTNET' if self.testnet else 'MAINNET'} | KEY: [{k[:4]}...{k[-4:]}]")
+            logger.info(f"MODO: {'TESTNET' if self.testnet else 'MAINNET'} | KEY LIMPIA: [{k[:4]}...{k[-4:]}] (Len: {len(k)})")
 
             try:
-                # Inicialización robusta con soporte para Testnet
                 self.client = Client(k, s, testnet=self.testnet)
-                
-                # Sincronización de tiempo necesaria en cloud
                 server_time = self.client.get_server_time()
                 self.client.timestamp_offset = server_time['serverTime'] - int(time.time() * 1000)
                 
                 self.order_manager = OrderManager(self.client)
                 
-                # Obtener balance inicial usando get_account (máxima compatibilidad)
                 acc = self.client.get_account(recvWindow=10000)
                 usdt_bal = 0.0
                 for b in acc['balances']:
@@ -55,7 +54,7 @@ class TradingBot:
                         break
                 
                 self.state['balance_usdt'] = usdt_bal
-                logger.info(f"✅ ¡CONECTADO CON ÉXITO! Saldo: {usdt_bal} USDT")
+                logger.info(f"✅ ¡CONECTADO! Saldo inicial: {usdt_bal} USDT")
                 
             except Exception as e:
                 logger.error(f"❌ FALLO DE AUTENTICACIÓN: {e}")
