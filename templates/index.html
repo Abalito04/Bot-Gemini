@@ -275,55 +275,58 @@
                 }
 
                 const isRunning = state.is_running;
+                const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+                const setCls = (id, cls) => { const el = document.getElementById(id); if (el) el.className = cls; };
+                const setSty = (id, prop, val) => { const el = document.getElementById(id); if (el) el.style[prop] = val; };
+
                 document.getElementById('bot-status').innerText = isRunning ? 'EJECUTANDO' : 'DETENIDO';
                 document.getElementById('bot-status').className = 'status-badge ' + (isRunning ? 'status-on' : 'status-off');
                 
-                document.getElementById('symbol-header').innerText = state.symbol;
-                document.getElementById('daily-pnl').innerText = `$${state.daily_pnl.toFixed(2)}`;
-                document.getElementById('daily-pnl').style.color = state.daily_pnl >= 0 ? '#0ecb81' : '#f6465d';
+                setEl('symbol-header', state.symbol);
+                setEl('daily-pnl', `$${state.daily_pnl.toFixed(2)}`);
+                setSty('daily-pnl', 'color', state.daily_pnl >= 0 ? '#0ecb81' : '#f6465d');
                 
-                if (state.balance_usdt !== undefined) {
-                    document.getElementById('balance-usdt').innerText = state.balance_usdt.toFixed(2);
-                }
+                if (state.balance_usdt !== undefined) setEl('balance-usdt', state.balance_usdt.toFixed(2));
                 
                 if (state.balance_asset !== undefined) {
                     const assetName = state.symbol ? state.symbol.replace('USDT', '') : '---';
-                    document.getElementById('asset-name').innerText = assetName;
-                    document.getElementById('balance-asset').innerText = state.balance_asset.toFixed(4);
+                    setEl('asset-name', assetName);
+                    setEl('balance-asset', state.balance_asset.toFixed(4));
                 }
 
                 if (state.last_update) {
-                    const date = new Date(state.last_update);
-                    document.getElementById('last-update').innerText = date.toLocaleTimeString();
+                    setEl('last-update', new Date(state.last_update).toLocaleTimeString());
                 }
                 
-                if (state.last_price) {
-                    document.getElementById('current-price').innerText = state.last_price.toLocaleString();
+                if (state.last_price) setEl('current-price', state.last_price.toLocaleString());
+                
+                if (state.last_rsi !== undefined) {
+                    setEl('current-rsi', state.last_rsi.toFixed(2));
+                    setSty('current-rsi', 'color', state.last_rsi <= 42 ? '#0ecb81' : (state.last_rsi >= 62 ? '#f6465d' : '#f3ba2f'));
                 }
-                if (state.last_rsi) {
-                    document.getElementById('current-rsi').innerText = state.last_rsi.toFixed(2);
-                    document.getElementById('current-rsi').style.color = state.last_rsi <= 42 ? '#0ecb81' : (state.last_rsi >= 62 ? '#f6465d' : '#f3ba2f');
-                }
-                if (state.last_ema200) {
-                    document.getElementById('current-ema').innerText = state.last_ema200.toLocaleString();
-                    document.getElementById('current-ema').style.color = state.last_price > state.last_ema200 ? '#0ecb81' : '#f6465d';
+                
+                if (state.last_ema200 !== undefined) {
+                    setEl('current-ema', state.last_ema200.toLocaleString());
+                    setSty('current-ema', 'color', state.last_price > state.last_ema200 ? '#0ecb81' : '#f6465d');
                 }
 
                 // Actualizar historial
                 const tbody = document.getElementById('trades-body');
-                tbody.innerHTML = '';
-                const trades = state.operaciones || [];
-                [...trades].reverse().slice(0, 10).forEach(trade => {
-                    const row = `<tr>
-                        <td>${new Date(trade.timestamp).toLocaleTimeString()}</td>
-                        <td class="${trade.side === 'BUY' ? 'side-buy' : 'side-sell'}">${trade.side}</td>
-                        <td>${trade.price}</td>
-                        <td>${trade.rsi ? trade.rsi.toFixed(2) : '--'}</td>
-                        <td>${trade.qty}</td>
-                        <td style="color: var(--text-muted)">${trade.reason}</td>
-                    </tr>`;
-                    tbody.innerHTML += row;
-                });
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    const trades = state.operaciones || [];
+                    [...trades].reverse().slice(0, 10).forEach(trade => {
+                        const row = `<tr>
+                            <td>${new Date(trade.timestamp).toLocaleTimeString()}</td>
+                            <td class="${trade.side === 'BUY' ? 'side-buy' : 'side-sell'}">${trade.side}</td>
+                            <td>${trade.price}</td>
+                            <td>${trade.rsi ? trade.rsi.toFixed(2) : '--'}</td>
+                            <td>${trade.qty}</td>
+                            <td style="color: var(--text-muted)">${trade.reason}</td>
+                        </tr>`;
+                        tbody.innerHTML += row;
+                    });
+                }
 
             } catch (error) {
                 console.error('Error actualizando dashboard:', error);
