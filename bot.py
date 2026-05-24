@@ -41,8 +41,10 @@ class TradingBot:
                 
                 # Prueba de fuego: ¿Podemos ver el balance?
                 bal = self.get_balance()
-                self.state['balance_usdt'] = bal
-                logger.info(f"✅ Conexión privada EXITOSA. Saldo: {bal}")
+                if bal > 0 or self.state.get('balance_usdt', 0) == 0: 
+                    # Si bal es 0 pero no hubo error, también es éxito
+                    self.state['balance_usdt'] = bal
+                    logger.info(f"✅ Conexión privada EXITOSA. Saldo: {bal}")
             except Exception as e:
                 logger.error(f"❌ Error de conexión privada: {e}")
             

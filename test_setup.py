@@ -36,7 +36,7 @@ if __name__ == "__main__":
         print("\n--- Instrucciones de ejecución ---")
         print("1. Instala dependencias: pip install -r requirements.txt")
         print("2. Configura tus credenciales (Windows):")
-        print('   $env:BINANCE_API_KEY="tu_key"; $env:BINANCE_API_SECRET="tu_secret"')
+        print('   $env:BINANCE_API_KEY="TU_KEY"; $env:BINANCE_API_SECRET="TU_SECRET"')
         print("3. Ejecuta el dashboard: python app.py")
         print("4. Abre en tu navegador: http://localhost:5000")
     else:
