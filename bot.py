@@ -25,16 +25,32 @@ class TradingBot:
         self.state = self.load_state()
 
     def initialize_client(self):
-        """Inicializa el cliente de Binance y sincroniza el tiempo."""
+        """Inicializa el cliente de Binance usando el endpoint api3 (más robusto para cloud)."""
         if self.client is None:
-            logger.info("Inicializando cliente de Binance...")
-            self.client = Client(self.api_key, self.api_secret)
-            self.client.API_URL = 'https://api.binance.com/api'
+            logger.info("Inicializando cliente de Binance en api3...")
+            
+            # Limpieza profunda de llaves
+            if not self.api_key or not self.api_secret:
+                logger.error("API Keys vacías. Revisa Railway -> Variables.")
+                return
+
+            clean_key = str(self.api_key).strip().replace('"', '').replace("'", "")
+            clean_secret = str(self.api_secret).strip().replace('"', '').replace("'", "")
+            
+            # Inicializar cliente con el endpoint api3
+            self.client = Client(clean_key, clean_secret)
+            self.client.API_URL = 'https://api3.binance.com/api'
+            
             self.sync_time()
             self.order_manager = OrderManager(self.client)
             
-            # Carga inicial de balance
-            self.state['balance_usdt'] = self.get_balance()
+            # Forzar carga de balance inicial
+            try:
+                self.state['balance_usdt'] = self.get_balance()
+                logger.info(f"Balance inicial cargado con éxito.")
+            except Exception as e:
+                logger.error(f"Fallo el balance inicial: {e}")
+            
             self.save_state()
 
     def sync_time(self):
