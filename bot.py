@@ -169,10 +169,53 @@ class TradingBot:
             if signal:
                 logger.info(f"SEÑAL DETECTADA: {signal} | RSI: {last_rsi:.2f}")
 
-            # 3. Lógica de Ejecución (Simplificada para MVP)
+            # 3. Lógica de Ejecución (COMPRA ACTIVA)
             if signal == 'BUY' and not self.state['current_position']:
-                # Aquí iría la lógica de compra real
-                pass
+                price = self.state['last_price']
+                qty = self.state['monto_operacion'] / price
+
+                logger.info(f"🚀 SEÑAL BUY: Ejecutando orden de {qty:.4f} {self.state['symbol']}...")
+
+                # Ejecutar compra
+                order = self.order_manager.place_market_buy(self.state['symbol'], qty)
+
+                if order and 'fills' in order:
+                    fill_price = float(order['fills'][0]['price'])
+                    actual_qty = float(order['executedQty'])
+
+                    # Calcular precios OCO usando valores configurables del estado
+                    tp_pct = self.state.get('tp_pct', 1.2)
+                    sl_pct = self.state.get('sl_pct', 0.8)
+
+                    tp_price = fill_price * (1 + tp_pct/100)
+                    sl_trigger = fill_price * (1 - sl_pct/100)
+                    sl_limit = sl_trigger * 0.998 
+
+                    logger.info(f"Colocando OCO: TP {tp_price:.2f} (+{tp_pct}%) | SL {sl_trigger:.2f} (-{sl_pct}%)")
+                    oco = self.order_manager.place_oco_sell(
+                        self.state['symbol'], actual_qty, tp_price, sl_trigger, sl_limit
+                    )
+                    
+                    if oco:
+                        self.state['current_position'] = {
+                            'price': fill_price,
+                            'qty': actual_qty,
+                            'time': datetime.now().isoformat()
+                        }
+                        self.state['operaciones'].append({
+                            'timestamp': datetime.now().isoformat(),
+                            'side': 'BUY',
+                            'price': fill_price,
+                            'qty': actual_qty,
+                            'rsi': self.state['last_rsi'],
+                            'reason': 'RSI Oversold + EMA Trend'
+                        })
+                        self.save_state()
+                        logger.info("✅ ¡COMPRA REALIZADA Y OCO COLOCADA!")
+                    else:
+                        logger.error("❌ Falló la OCO. ¡CUIDADO! Posición abierta sin protección.")
+                else:
+                    logger.error("❌ Falló la orden de compra.")
 
         except Exception as e:
             logger.error(f"Error en el ciclo del bot: {e}")
