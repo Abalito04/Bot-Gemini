@@ -1,0 +1,23 @@
+# Entorno Virtual
+venv/
+ENV/
+env/
+.env
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Datos y Logs (Persistencia local)
+state.json
+trades.csv
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
