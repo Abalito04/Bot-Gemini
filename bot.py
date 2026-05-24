@@ -15,29 +15,27 @@ logger = logging.getLogger(__name__)
 
 class TradingBot:
     def __init__(self, api_key, api_secret):
-        # Log para verificar que las llaves existen (sin mostrarlas completas)
-        if api_key and api_secret:
-            logger.info(f"API Keys detectadas. Key empieza por: {api_key[:5]}...")
-        else:
-            logger.error("API Keys NO detectadas. Verifica las variables de entorno.")
-
-        # Usamos el cliente con una configuración de región más flexible
-        self.client = Client(api_key, api_secret)
-        # Forzamos el endpoint global de Binance
-        self.client.API_URL = 'https://api.binance.com/api'
-        self.client.timestamp_offset = 0
-        self.sync_time()
-        
-        self.order_manager = OrderManager(self.client)
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self.client = None # Se inicializará en start()
+        self.order_manager = None
         self.strategy = Strategy()
         self.state_file = 'state.json'
         self.log_csv = 'trades.csv'
         self.state = self.load_state()
-        
-        # Intentar obtener balance inicial inmediatamente
-        initial_balance = self.get_balance()
-        self.state['balance_usdt'] = initial_balance
-        self.save_state()
+
+    def initialize_client(self):
+        """Inicializa el cliente de Binance y sincroniza el tiempo."""
+        if self.client is None:
+            logger.info("Inicializando cliente de Binance...")
+            self.client = Client(self.api_key, self.api_secret)
+            self.client.API_URL = 'https://api.binance.com/api'
+            self.sync_time()
+            self.order_manager = OrderManager(self.client)
+            
+            # Carga inicial de balance
+            self.state['balance_usdt'] = self.get_balance()
+            self.save_state()
 
     def sync_time(self):
         """Sincroniza el tiempo local con el servidor de Binance."""
@@ -201,6 +199,7 @@ class TradingBot:
 
     def start(self):
         logger.info("Iniciando loop del bot...")
+        self.initialize_client() # Inicializar cliente antes del primer ciclo
         while True:
             self.run_cycle()
             time.sleep(60) # Esperar 1 minuto para el siguiente ciclo
