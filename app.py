@@ -27,10 +27,8 @@ def index():
 
 @app.route('/api/state', methods=['GET'])
 def get_state():
-    """Retorna el estado actual del bot en JSON."""
-    with open('state.json', 'r') as f:
-        state = json.load(f)
-    return jsonify(state)
+    """Retorna el estado actual del bot desde la memoria."""
+    return jsonify(bot.state)
 
 @app.route('/api/start', methods=['POST'])
 def start_bot():
@@ -48,10 +46,8 @@ def stop_bot():
 
 @app.route('/api/operaciones', methods=['GET'])
 def get_operaciones():
-    """Retorna el historial de operaciones desde el CSV o state.json."""
-    with open('state.json', 'r') as f:
-        state = json.load(f)
-    return jsonify(state.get('operaciones', []))
+    """Retorna el historial de operaciones desde la memoria."""
+    return jsonify(bot.state.get('operaciones', []))
 
 if __name__ == '__main__':
     # Iniciar el bot en un hilo separado para no bloquear Flask

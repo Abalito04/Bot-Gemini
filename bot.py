@@ -27,6 +27,7 @@ class TradingBot:
         self.state_file = 'state.json'
         self.log_csv = 'trades.csv'
         self.state = self.load_state()
+        self.save_state() # Crear el archivo si no existe inmediatamente
 
     def sync_time(self):
         """Sincroniza el tiempo local con el servidor de Binance."""
