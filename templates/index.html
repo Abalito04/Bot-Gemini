@@ -342,7 +342,6 @@
         }
 
         async function saveConfig() {
-            // ... (keep saveConfig as is) ...
             const config = {
                 monto_operacion: document.getElementById('monto').value,
                 tp_pct: document.getElementById('tp').value,
@@ -359,9 +358,16 @@
             alert('Configuración guardada');
         }
 
+        async function controlBot(action) {
+            const url = action === 'start' ? '/api/bot/start' : '/api/bot/stop';
+            await fetch(url, { method: 'POST' });
+            if (action === 'start') countdown = 60;
+            updateDashboard();
+        }
+
         setInterval(updateDashboard, 2000);
         updateDashboard();
-        loadConfig(); // Cargar config al iniciar
+        loadConfig();
     </script>
 </body>
 </html>
