@@ -1,19 +1,18 @@
 # 🤖 Bot-Gemini
 
-Conversational AI chatbot powered by **Google Gemini API** with context memory and a clean web interface.
+Algorithmic **trading bot** powered by **Google Gemini AI** for market analysis and automated trade decision-making.
 
 ## ✨ Features
 
-- Conversational AI using Google Gemini API
-- Context memory across the conversation
-- Clean, minimal web chat interface
-- Python/Flask backend
+- AI-powered market analysis using Google Gemini API
+- Automated trading signal generation
+- Python backend
 
 ## 🛠️ Tech Stack
 
-- **Python** · Flask
+- **Python**
 - **Google Gemini API**
-- **HTML/CSS/JavaScript**
+- **ccxt / Binance API** *(if applicable)*
 
 ## 🚀 Getting Started
 
@@ -25,13 +24,17 @@ cd Bot-Gemini
 # Install dependencies
 pip install -r requirements.txt
 
-# Set your Gemini API key
-export GEMINI_API_KEY=your_api_key_here
+# Set your API keys
+export GEMINI_API_KEY=your_gemini_key
 
-# Run the app
-python app.py
+# Run the bot
+python main.py
 ```
+
+## ⚠️ Disclaimer
+
+This bot is for educational purposes. Cryptocurrency trading involves significant risk. Use at your own risk.
 
 ## 📄 License
 
-MIT — feel free to use and adapt.
+MIT
