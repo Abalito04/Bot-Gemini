@@ -1,30 +1,37 @@
-# Binance Scalper Bot 🚀
+# 🤖 Bot-Gemini
 
-Bot de trading algorítmico diseñado para scalping de alta frecuencia en Binance, optimizado para Railway.
+Conversational AI chatbot powered by **Google Gemini API** with context memory and a clean web interface.
 
-## Requerimientos
-- Python 3.9+
-- API Key y Secret de Binance (con permisos de Trading).
+## ✨ Features
 
-## Configuración en Railway
-Añade las siguientes variables de entorno:
-- `BINANCE_API_KEY`: Tu clave de API.
-- `BINANCE_API_SECRET`: Tu clave secreta.
-- `PORT`: 5000 (Opcional, Railway lo asigna).
+- Conversational AI using Google Gemini API
+- Context memory across the conversation
+- Clean, minimal web chat interface
+- Python/Flask backend
 
-## Arquitectura
-- `app.py`: Servidor Flask y Dashboard.
-- `bot.py`: Motor de trading (Loop principal).
-- `order_manager.py`: Gestión de órdenes (Market + OCO) y redondeo de precisión.
-- `strategy.py`: Lógica de RSI (14 periodos).
-- `state.json`: Persistencia de estado (PnL, Posiciones).
+## 🛠️ Tech Stack
 
-## Estrategia
-- **LONG (Compra)**: RSI <= 42.
-- **OCO (Venta)**: Take Profit ~1.2%, Stop Loss ~0.8% (ajustable en `bot.py`).
-- **Filtro de Riesgo**: Max Daily Loss (detiene el bot si se alcanza).
+- **Python** · Flask
+- **Google Gemini API**
+- **HTML/CSS/JavaScript**
 
-## API Endpoints
-- `GET /api/state`: Estado actual en tiempo real.
-- `POST /api/start`: Iniciar el bot.
-- `POST /api/stop`: Detener el bot.
+## 🚀 Getting Started
+
+```bash
+# Clone the repo
+git clone https://github.com/Abalito04/Bot-Gemini.git
+cd Bot-Gemini
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set your Gemini API key
+export GEMINI_API_KEY=your_api_key_here
+
+# Run the app
+python app.py
+```
+
+## 📄 License
+
+MIT — feel free to use and adapt.
